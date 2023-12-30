@@ -1,0 +1,22 @@
+{
+  "KPlugin": {
+    "Authors": [
+      {
+        "Email": "kascorp@gmail.com",
+        "Name": "Qalculator"
+      }
+    ],
+    "Category": "Finance",
+    "Description": "Calculator qalculator",
+    "EnabledByDefault": true,
+    "Icon": "accessories-calculator",
+    "Id": "krunner_qalculator",
+    "License": "LGPL",
+    "Name": "Qalculator",
+    "ServiceTypes": [
+      "Plasma/Runner"
+    ],
+    "Version": "1.0",
+    "Website": "https://github.com/kas-cor/krunner-qalculator"
+  }
+}
