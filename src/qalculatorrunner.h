@@ -16,27 +16,30 @@
  *   51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
-#ifndef CALCULATORRUNNER_H
-#define CALCULATORRUNNER_H
+#pragma once
 
-#include <krunner/abstractrunner.h>
-
-class QWidget;
+#include <QObject>
+#include <QString>
+#include <KRunner/AbstractRunner>
+#include <KRunner/RunnerContext>
+#include <KPluginFactory>
 
 /**
  * This class evaluates the basic expressions given in the interface.
  */
-class QalculatorRunner : public Plasma::AbstractRunner
+class QalculatorRunner : public KRunner::AbstractRunner
 {
     Q_OBJECT
 
-    public:
-        explicit QalculatorRunner(QObject* parent, const QVariantList &args);
-        ~QalculatorRunner();
-        void match(Plasma::RunnerContext &context);
+public:
+    QalculatorRunner(QObject* parent, const KPluginMetaData &pluginMetaData);
+    ~QalculatorRunner() override;
 
-    private:
-        QString calculate(const QString& term);
+public Q_SLOTS:
+    void match(KRunner::RunnerContext &context) override;
+
+private:
+    QString calculate(const QString &term);
 };
 
-#endif
+K_PLUGIN_CLASS_WITH_JSON(QalculatorRunner, "manifest.json")
