@@ -7,16 +7,19 @@
       }
     ],
     "Category": "Finance",
-    "Description": "Calculator qalculator",
+    "Description": "Calculator using qalc",
     "EnabledByDefault": true,
     "Icon": "accessories-calculator",
     "Id": "krunner_qalculator",
-    "License": "LGPL",
+    "License": "LGPL-2.1+",
     "Name": "Qalculator",
-    "ServiceTypes": [
-      "Plasma/Runner"
-    ],
     "Version": "1.0",
     "Website": "https://github.com/kas-cor/krunner-qalculator"
+  },
+  "KRunner": {
+    "MinimumQuery": 2,
+    "Triggers": [
+      "="
+    ]
   }
 }

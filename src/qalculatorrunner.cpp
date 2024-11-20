@@ -24,92 +24,69 @@
 
 #include "qalculatorrunner.h"
 
-#include <QWidget>
-#include <QString>
 #include <QProcess>
-#include <QIcon>
 #include <KLocalizedString>
 
-QalculatorRunner::QalculatorRunner(QObject* parent, const QVariantList &args)
-    : Plasma::AbstractRunner(parent, args)
+QalculatorRunner::QalculatorRunner(QObject* parent, const KPluginMetaData &pluginMetaData)
+    : KRunner::AbstractRunner(parent, pluginMetaData)
 {
-    Q_UNUSED(args)
-
-    setObjectName("Qalculator");
-    setPriority(AbstractRunner::HighestPriority);
+    setObjectName(QStringLiteral("Qalculator"));
 }
 
 QalculatorRunner::~QalculatorRunner()
 {
 }
 
-void QalculatorRunner::match(Plasma::RunnerContext &context)
+void QalculatorRunner::match(KRunner::RunnerContext &context)
 {
     const QString term = context.query();
-    QString cmd = term;
-
-    //no meanless space between friendly guys: helps simplify code
-    cmd = cmd.trimmed().replace(" ", "");
-
-    if (cmd.length() < 4) {
-        return;
-    }
-
-    //make sure there is an equals sign. if not
-    //we shouldn't be computing anything!
-    if (!cmd.contains("=", Qt::CaseSensitive)) {
-        return;
-    }
-
-    if (cmd[0] == '=') {
-        cmd.remove(0, cmd.indexOf('=') + 1);
-    } else if (cmd.endsWith('=')) {
-        cmd.chop(1);
-    }
     
-    //santity check that the user didn't just type "   ="
-    //or somesuch nonsense
-    if (cmd.isEmpty()) {
+    if (term.length() < 3) {
         return;
     }
 
-    QString result = calculate(cmd);
-    Plasma::QueryMatch match(this);
-    match.setType(Plasma::QueryMatch::InformationalMatch);
-    match.setIconName(QStringLiteral("accessories-calculator"));
-    match.setText(result);
-    match.setData("=" + result);
-    match.setId(QString());
-    match.setRelevance(1.0);
-    if (!context.isValid()) {
-        return;
+    const QString result = calculate(term);
+    if (!result.isEmpty()) {
+        KRunner::QueryMatch match(this);
+        match.setRelevance(1.0);
+        match.setText(result);
+        match.setIconName(QStringLiteral("accessories-calculator"));
+        context.addMatch(match);
     }
-    QList<Plasma::QueryMatch> matches;
-    matches << match;
-    context.addMatches(matches);
 }
 
-QString QalculatorRunner::calculate(const QString& term)
+QString QalculatorRunner::calculate(const QString &term)
 {
-    QStringList argList;
-
-    //load up the options
-    argList << "-t" << "-u8";
-
     QProcess qalculateProcess;
+    QStringList args;
+    args << QStringLiteral("--defaults")
+         << QStringLiteral("-e")
+         << QStringLiteral("-t")
+         << QStringLiteral("+u8")
+         << term;
+    
+    qalculateProcess.start(QStringLiteral("qalc"), args);
 
-    qalculateProcess.start("qalc", QStringList() << argList << term);
-
-    if (!qalculateProcess.waitForFinished()){
-        return "qalc failed to execute";
+    if (!qalculateProcess.waitForStarted()) {
+        return QString();
     }
 
-    //make sure to read our data in as utf-8 so QString doesn't mangle it!
-    QString result = QString::fromUtf8(qalculateProcess.readAll());
+    if (!qalculateProcess.waitForFinished()) {
+        return QString();
+    }
 
-    return result.trimmed();
+    if (qalculateProcess.exitCode() != 0) {
+        return QString();
+    }
+
+    QString result = QString::fromUtf8(qalculateProcess.readAllStandardOutput());
+    result = result.trimmed();
+
+    if (result.contains(QLatin1Char('\n'))) {
+        result = result.split(QLatin1Char('\n')).last().trimmed();
+    }
+
+    return result;
 }
-
-K_PLUGIN_CLASS_WITH_JSON(QalculatorRunner, "manifest.json");
 
 #include "qalculatorrunner.moc"

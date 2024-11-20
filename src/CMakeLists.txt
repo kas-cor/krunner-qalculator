@@ -1,40 +1,43 @@
+cmake_minimum_required(VERSION 3.16)
+
 project(krunner-qalculator)
-cmake_minimum_required(VERSION 2.8.12)
+
 set(PROJECT_VERSION "1.0.0")
 set(PROJECT_SOVERSION 0)
 
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_AUTOMOC ON)
+set(CMAKE_AUTORCC ON)
+
+find_package(ECM 5.240.0 REQUIRED NO_MODULE)
+set(CMAKE_MODULE_PATH ${ECM_MODULE_PATH})
+
+include(FeatureSummary)
+include(KDEInstallDirs)
+include(KDECMakeSettings)
+include(KDECompilerSettings NO_POLICY_SCOPE)
+include(ECMQtDeclareLoggingCategory)
+
+find_package(Qt6 CONFIG REQUIRED COMPONENTS Core Widgets)
+find_package(KF6 REQUIRED COMPONENTS Runner I18n CoreAddons)
+
 add_definitions("-DPROJECT_VERSION=\"${PROJECT_VERSION}\"")
 
-add_definitions(-std=c++11)
 option(ENABLE_DEBUG "Enable debug" OFF)
 if(ENABLE_DEBUG)
     add_definitions(-g -DDEBUG)
 endif()
 
-find_package(ECM 1.3.0 REQUIRED NO_MODULE)
-set(CMAKE_MODULE_PATH ${ECM_MODULE_PATH})
+add_library(krunner_qalculator MODULE qalculatorrunner.cpp)
 
-find_package(Qt5 REQUIRED COMPONENTS Widgets)
-find_package(KF5 REQUIRED COMPONENTS Runner I18n)
-
-include(FeatureSummary)
-include(KDEInstallDirs)
-include(KDECMakeSettings)
-include(KDECompilerSettings)
-include(ECMPackageConfigHelpers)
-
-feature_summary(WHAT ALL FATAL_ON_MISSING_REQUIRED_PACKAGES)
-
-set(krunner_qalculator_SRCS
-    qalculatorrunner.cpp
+target_link_libraries(krunner_qalculator
+    Qt6::Core
+    Qt6::Widgets
+    KF6::Runner
+    KF6::I18n
+    KF6::CoreAddons
 )
 
-add_library(krunner_qalculator MODULE ${krunner_qalculator_SRCS})
-target_link_libraries(
-    krunner_qalculator
-    Qt5::Widgets
-    KF5::Runner
-    KF5::I18n
-)
-
-install(TARGETS krunner_qalculator DESTINATION ${KDE_INSTALL_PLUGINDIR})
+install(TARGETS krunner_qalculator DESTINATION ${KDE_INSTALL_PLUGINDIR}/kf6/krunner)
+install(FILES manifest.json DESTINATION ${KDE_INSTALL_PLUGINDIR}/kf6/krunner)
