@@ -1,3 +1,49 @@
-.idea
-build
-.cache
+# IDE specific files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Build directories
+build/
+/bin/
+/lib/
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+install_manifest.txt
+
+# Compiled files
+*.o
+*.so
+*.a
+*.dll
+*.dylib
+*.exe
+*.out
+*.app
+*.ko
+*.obj
+*.elf
+
+# Debug files
+*.dSYM/
+*.su
+*.idb
+*.pdb
+
+# Cache and temporary files
+.cache/
+.tmp/
+*.tmp
+*.temp
+
+# System files
+.DS_Store
+Thumbs.db
+
+# Project specific
+compile_commands.json
+.cmake/
+Testing/

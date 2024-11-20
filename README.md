@@ -5,6 +5,7 @@
 A powerful calculator plugin for KDE Plasma's KRunner, leveraging the advanced capabilities of libqalculate.
 
 [![License: GPL v2](https://img.shields.io/badge/License-GPL%20v2-blue.svg)](https://www.gnu.org/licenses/old-licenses/gpl-2.0.en.html)
+[![Donate Crypto](https://img.shields.io/badge/Donate-Cryptocurrency-orange.svg)](https://bit.ly/3uVaKEu)
 
 ## Features
 
@@ -87,6 +88,21 @@ To remove the plugin:
 ## License
 
 This project is licensed under the GNU General Public License v2.0 - see the [LICENSE](LICENSE) file for details.
+
+## Support the Project
+
+If you find this plugin useful and want to support its development, you can contribute in several ways:
+
+### 💖 Cryptocurrency Donations
+
+Support this project by donating cryptocurrency:
+- Visit [our donation page](https://bit.ly/3uVaKEu) for BTC and USDT wallet addresses
+
+### ⭐ Other Ways to Support
+- Star this repository
+- Share the project with others
+- Submit bug reports or feature requests
+- Contribute code or documentation improvements
 
 ## Acknowledgments
 
