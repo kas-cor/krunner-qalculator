@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Функция для перезапуска KRunner
+# Function to restart KRunner
 restart_krunner() {
     if pgrep -x "krunner" > /dev/null; then
         kquitapp6 krunner &>/dev/null || true
@@ -14,36 +14,36 @@ restart_krunner() {
     sleep 1
 }
 
-# Проверяем наличие директории build
+# Check for build directory
 if [ ! -d "build" ]; then
-    echo "Ошибка: директория build не найдена"
-    echo "Запустите install.sh хотя бы один раз перед удалением"
+    echo "Error: build directory not found"
+    echo "Run install.sh at least once before uninstalling"
     exit 1
 fi
 
-# Переходим в директорию сборки
+# Change to build directory
 cd build
 
-# Удаляем плагин
-echo "Удаление плагина..."
+# Remove plugin
+echo "Removing plugin..."
 if sudo -n true 2>/dev/null; then
     sudo make uninstall
 else
-    # Запрашиваем пароль через systemd-ask-password если доступен
+    # Request password via systemd-ask-password if available
     if command -v systemd-ask-password &> /dev/null; then
-        sudo -S make uninstall <<< $(systemd-ask-password "Введите пароль sudo для удаления плагина: ")
+        sudo -S make uninstall <<< $(systemd-ask-password "Enter sudo password to remove plugin: ")
     else
-        # Используем стандартный ввод пароля
-        echo "Для удаления плагина требуется пароль sudo"
+        # Use standard password input
+        echo "Sudo password required to remove plugin"
         sudo make uninstall
     fi
 fi
 
 if [ $? -eq 0 ]; then
-    echo "Плагин успешно удален"
+    echo "Plugin removed successfully"
     restart_krunner
-    echo "KRunner перезапущен"
+    echo "KRunner restarted"
 else
-    echo "Ошибка при удалении плагина"
+    echo "Error removing plugin"
     exit 1
 fi

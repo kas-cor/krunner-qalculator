@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Функция для перезапуска KRunner
+# Function to restart KRunner
 restart_krunner() {
     if pgrep -x "krunner" > /dev/null; then
         kquitapp6 krunner &>/dev/null || true
@@ -14,50 +14,50 @@ restart_krunner() {
     sleep 1
 }
 
-# Проверяем наличие необходимых команд
+# Check for required commands
 if ! command -v cmake &> /dev/null; then
-    echo "Ошибка: cmake не установлен"
+    echo "Error: cmake is not installed"
     exit 1
 fi
 
 if ! command -v make &> /dev/null; then
-    echo "Ошибка: make не установлен"
+    echo "Error: make is not installed"
     exit 1
 fi
 
-# Очищаем и создаем директорию для сборки
+# Clean and create build directory
 rm -rf build
 mkdir -p build
 cd build
 
-# Конфигурируем проект
-echo "Конфигурация проекта..."
+# Configure project
+echo "Configuring project..."
 cmake ../src/ -DCMAKE_INSTALL_PREFIX=/usr
 
-# Собираем проект
-echo "Сборка проекта..."
+# Build project
+echo "Building project..."
 make
 
-# Устанавливаем
-echo "Установка плагина..."
+# Install
+echo "Installing plugin..."
 if sudo -n true 2>/dev/null; then
     sudo make install
 else
-    # Запрашиваем пароль через systemd-ask-password если доступен
+    # Request password via systemd-ask-password if available
     if command -v systemd-ask-password &> /dev/null; then
-        sudo -S make install <<< $(systemd-ask-password "Введите пароль sudo для установки плагина: ")
+        sudo -S make install <<< $(systemd-ask-password "Enter sudo password to install plugin: ")
     else
-        # Используем стандартный ввод пароля
-        echo "Для установки плагина требуется пароль sudo"
+        # Use standard password input
+        echo "Sudo password required to install plugin"
         sudo make install
     fi
 fi
 
 if [ $? -eq 0 ]; then
-    echo "Плагин успешно установлен"
+    echo "Plugin installed successfully"
     restart_krunner
-    echo "KRunner перезапущен. Попробуйте использовать плагин, нажав Alt+Space"
+    echo "KRunner restarted. Try using the plugin by pressing Alt+Space"
 else
-    echo "Ошибка при установке плагина"
+    echo "Error installing plugin"
     exit 1
 fi
