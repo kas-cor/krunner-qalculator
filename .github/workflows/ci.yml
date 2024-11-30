@@ -3,11 +3,11 @@ name: Build KRunner Plugins
 on:
   push:
     branches:
-      - master
+      - main
       - github_actions
   pull_request:
     branches:
-      - master
+      - main
   workflow_dispatch:
     inputs:
       publish-version:
