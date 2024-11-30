@@ -13,7 +13,7 @@
     "Id": "krunner_qalculator",
     "License": "LGPL-2.1+",
     "Name": "Qalculator",
-    "Version": "1.0",
+    "Version": "2.0.1",
     "Website": "https://github.com/kas-cor/krunner-qalculator"
   },
   "KRunner": {

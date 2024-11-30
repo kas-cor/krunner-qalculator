@@ -51,8 +51,35 @@ void QalculatorRunner::match(KRunner::RunnerContext &context)
         match.setRelevance(1.0);
         match.setText(result);
         match.setIconName(QStringLiteral("accessories-calculator"));
+        match.setData(QStringLiteral("copy"));
+
+        KRunner::Action copyAction(QStringLiteral("copy"), QStringLiteral("edit-copy"), i18n("Copy to clipboard"));
+        match.addAction(copyAction);
+        
         context.addMatch(match);
     }
+}
+
+void QalculatorRunner::run(const KRunner::RunnerContext &context, const KRunner::QueryMatch &match)
+{
+    Q_UNUSED(context)
+    
+    const QString result = match.text();
+    const QString action = match.selectedAction().id();
+
+    if (action == QLatin1String("copy")) {
+        copyToClipboard(result);
+        context.requestQueryStringUpdate(QString(), 0); // Close KRunner
+    } else {
+        // Insert result into query line without closing KRunner
+        context.requestQueryStringUpdate(result, result.length());
+    }
+}
+
+void QalculatorRunner::copyToClipboard(const QString &text)
+{
+    QClipboard *clipboard = QGuiApplication::clipboard();
+    clipboard->setText(text);
 }
 
 QString QalculatorRunner::calculate(const QString &term)
@@ -88,5 +115,3 @@ QString QalculatorRunner::calculate(const QString &term)
 
     return result;
 }
-
-#include "qalculatorrunner.moc"

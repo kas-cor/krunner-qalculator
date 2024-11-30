@@ -22,7 +22,10 @@
 #include <QString>
 #include <KRunner/AbstractRunner>
 #include <KRunner/RunnerContext>
+#include <KRunner/Action>
 #include <KPluginFactory>
+#include <QClipboard>
+#include <QGuiApplication>
 
 /**
  * This class evaluates the basic expressions given in the interface.
@@ -37,9 +40,11 @@ public:
 
 public Q_SLOTS:
     void match(KRunner::RunnerContext &context) override;
+    void run(const KRunner::RunnerContext &context, const KRunner::QueryMatch &match) override;
 
 private:
     QString calculate(const QString &term);
+    void copyToClipboard(const QString &text);
 };
 
 K_PLUGIN_CLASS_WITH_JSON(QalculatorRunner, "manifest.json")

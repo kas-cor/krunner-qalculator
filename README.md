@@ -15,6 +15,14 @@ A powerful calculator plugin for KDE Plasma's KRunner, leveraging the advanced c
 - Currency conversion support
 - Unit conversion capabilities
 - Advanced mathematical functions
+- Quick result insertion into KRunner query line
+- Copy results to clipboard with a single click
+
+## What's New in 2.0.1
+
+- Added ability to insert calculation results directly into KRunner query line
+- Added copy button with icon for quick copying results to clipboard
+- Improved UI/UX with standard KDE icons and actions
 
 ## Requirements
 

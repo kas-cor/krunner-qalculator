@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.16)
 
 project(krunner-qalculator)
 
-set(PROJECT_VERSION "1.0.0")
+set(PROJECT_VERSION "2.0.1")
 set(PROJECT_SOVERSION 0)
 
 set(CMAKE_CXX_STANDARD 17)
@@ -39,5 +39,11 @@ target_link_libraries(krunner_qalculator
     KF6::CoreAddons
 )
 
-install(TARGETS krunner_qalculator DESTINATION ${KDE_INSTALL_PLUGINDIR}/kf6/krunner)
-install(FILES manifest.json DESTINATION ${KDE_INSTALL_PLUGINDIR}/kf6/krunner)
+install(TARGETS krunner_qalculator DESTINATION ${CMAKE_INSTALL_PREFIX}/lib/qt6/plugins/kf6/krunner)
+install(FILES manifest.json DESTINATION ${CMAKE_INSTALL_PREFIX}/lib/qt6/plugins/kf6/krunner)
+
+# Clear KRunner cache after installation
+install(CODE "
+    execute_process(COMMAND killall krunner)
+    execute_process(COMMAND kstart6 krunner)
+")
