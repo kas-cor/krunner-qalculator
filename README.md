@@ -42,7 +42,7 @@ A powerful calculator plugin for KDE Plasma's KRunner, leveraging the advanced c
 1. Ensure all dependencies are installed
 2. Clone the repository:
    ```bash
-   git clone https://github.com/kas-cor/krunner-qalculator
+   git clone https://github.com/kas-cor/krunner-qalculator.git
    cd krunner-qalculator
    ```
 3. Run the installation script:
