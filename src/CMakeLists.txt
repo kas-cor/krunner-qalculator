@@ -4,6 +4,9 @@ project(krunner-qalculator)
 
 set(PROJECT_VERSION "2.0.1")
 set(PROJECT_SOVERSION 0)
+set(CMAKE_PROJECT_HOMEPAGE_URL "https://github.com/kas-cor/krunner-qalculator")
+set(CMAKE_PROJECT_AUTHOR "kas-cor")
+set(CMAKE_PROJECT_AUTHOR_EMAIL "kascorp@gmail.com")
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
