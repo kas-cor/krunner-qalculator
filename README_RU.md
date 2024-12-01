@@ -42,8 +42,8 @@
 1. Убедитесь, что все зависимости установлены
 2. Клонируйте репозиторий:
    ```bash
-   git clone https://github.com/your-username/krunner_qalc.git
-   cd krunner_qalc
+   git clone https://github.com/kas-cor/krunner-qalculator
+   cd krunner-qalculator
    ```
 3. Запустите скрипт установки:
    ```bash
