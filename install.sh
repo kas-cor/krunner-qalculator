@@ -41,7 +41,7 @@ fi
 
 # Configure project
 echo "Configuring project..."
-cmake ../src/ -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=Release -DKDE_INSTALL_USE_QT_SYS_PATHS=ON -DBUILD_TESTING=OFF $BUILD_QT6_OPTION
+cmake ../src/ -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DCMAKE_BUILD_TYPE=Release -DKDE_INSTALL_USE_QT_SYS_PATHS=ON -DBUILD_TESTING=OFF $BUILD_QT6_OPTION
 
 # Build project
 echo "Building project..."
@@ -63,10 +63,8 @@ else
 fi
 
 # KRunner needs to be restarted for the changes to be applied
-if pgrep -x krunner > /dev/null
-then
-    kquitapp$krunner_version krunner
-fi
+USER_NAME=$(logname)
+pkill -x krunner || true # prevent error message if krunner was not running
 
 echo "Plugin installed successfully"
 echo "KRunner restarted. Try using the plugin by pressing Alt+Space"

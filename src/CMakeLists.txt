@@ -23,7 +23,10 @@ include(KDECompilerSettings NO_POLICY_SCOPE)
 include(ECMQtDeclareLoggingCategory)
 
 find_package(Qt6 CONFIG REQUIRED COMPONENTS Core Widgets)
-find_package(KF6 REQUIRED COMPONENTS Runner I18n CoreAddons)
+find_package(KF6 REQUIRED COMPONENTS Runner I18n CoreAddons Config)
+find_package(PkgConfig REQUIRED)
+
+pkg_check_modules(QALCULATE REQUIRED IMPORTED_TARGET libqalculate)
 
 add_definitions("-DPROJECT_VERSION=\"${PROJECT_VERSION}\"")
 
@@ -32,7 +35,7 @@ if(ENABLE_DEBUG)
     add_definitions(-g -DDEBUG)
 endif()
 
-add_library(krunner_qalculator MODULE qalculatorrunner.cpp)
+kcoreaddons_add_plugin(krunner_qalculator SOURCES qalculatorrunner.cpp INSTALL_NAMESPACE "kf6/krunner")
 
 target_link_libraries(krunner_qalculator
     Qt6::Core
@@ -40,23 +43,9 @@ target_link_libraries(krunner_qalculator
     KF6::Runner
     KF6::I18n
     KF6::CoreAddons
+    KF6::ConfigCore
+    PkgConfig::QALCULATE
 )
-
-install(TARGETS krunner_qalculator DESTINATION ${CMAKE_INSTALL_PREFIX}/lib/qt6/plugins/kf6/krunner)
-install(FILES manifest.json DESTINATION ${CMAKE_INSTALL_PREFIX}/lib/qt6/plugins/kf6/krunner)
-
-# Clear KRunner cache after installation
-install(CODE "
-    execute_process(COMMAND krunner --version OUTPUT_VARIABLE KRUNNER_VERSION_OUTPUT)
-    string(REGEX MATCH \"krunner ([0-9]+)\" KRUNNER_VERSION_MATCH \"\${KRUNNER_VERSION_OUTPUT}\")
-    set(KRUNNER_VERSION \"\${CMAKE_MATCH_1}\")
-    if(KRUNNER_VERSION STREQUAL \"6\")
-        execute_process(COMMAND kquitapp6 krunner)
-        execute_process(COMMAND kstart6 krunner)
-    else()
-        execute_process(COMMAND krunner --replace)
-    endif()
-")
 
 # Enable testing if not disabled
 if(BUILD_TESTING)

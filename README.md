@@ -34,7 +34,7 @@ A powerful calculator plugin for KDE Plasma's KRunner, leveraging the advanced c
 - sudo privileges for installation
 
 ### Dependencies
-- `libqalculate` (qalc command must be available in $PATH)
+- `libqalculate-devel`
 - KRunner development files
 
 ## Installation
@@ -50,11 +50,12 @@ A powerful calculator plugin for KDE Plasma's KRunner, leveraging the advanced c
    ./install.sh
    ```
 
-The script will:
-- Configure the build environment
-- Compile the plugin
-- Install it to the system
-- Restart KRunner automatically
+    The script will:
+    - Configure the build environment
+    - Compile the plugin
+    - Install it to the system
+    - Restart KRunner automatically
+4. Disable the default calculator and unit converter plugins (recommended to reduce visual clutter)
 
 ## Uninstallation
 
@@ -73,7 +74,7 @@ To remove the plugin:
 - Basic calculations: `2 + 2 =`
 - Currency conversion: `100 USD to EUR =`
 - Unit conversion: `100 km/h to mph =`
-- Equations: `solve x^2 + 2x + 1 = 0`
+- Equations: `x^2 + 2x + 1 = 0`
 
 ## Troubleshooting
 

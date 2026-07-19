@@ -24,14 +24,25 @@
 
 #include "qalculatorrunner.h"
 
+#include <libqalculate/Calculator.h>
+
 #include <QProcess>
 #include <QRegularExpression>
 #include <KLocalizedString>
+#include <libqalculate/includes.h>
 
 QalculatorRunner::QalculatorRunner(QObject* parent, const KPluginMetaData &pluginMetaData)
     : KRunner::AbstractRunner(parent, pluginMetaData)
 {
     setObjectName(QStringLiteral("Qalculator"));
+
+    // Pre-initialize the library once when the plugin loads including all the exchange rates
+    if (!CALCULATOR) {
+        CALCULATOR = new Calculator();
+        CALCULATOR->loadGlobalDefinitions();
+        CALCULATOR->loadLocalDefinitions();
+        CALCULATOR->loadExchangeRates();
+    }
 }
 
 QalculatorRunner::~QalculatorRunner()
@@ -41,8 +52,8 @@ QalculatorRunner::~QalculatorRunner()
 void QalculatorRunner::match(KRunner::RunnerContext &context)
 {
     const QString term = context.query();
-    
-    if (term.length() < 3) {
+
+    if (term.isEmpty()) {
         return;
     }
 
@@ -52,19 +63,16 @@ void QalculatorRunner::match(KRunner::RunnerContext &context)
         match.setRelevance(1.0);
         match.setText(result);
         match.setIconName(QStringLiteral("accessories-calculator"));
-        match.setData(QStringLiteral("copy"));
 
         KRunner::Action copyAction(QStringLiteral("copy"), QStringLiteral("edit-copy"), i18n("Copy to clipboard"));
         match.addAction(copyAction);
-        
+
         context.addMatch(match);
     }
 }
 
 void QalculatorRunner::run(const KRunner::RunnerContext &context, const KRunner::QueryMatch &match)
 {
-    Q_UNUSED(context)
-    
     const QString result = match.text();
     const QString action = match.selectedAction().id();
 
@@ -86,66 +94,31 @@ bool QalculatorRunner::copyToClipboard(const QString &text)
         qWarning() << "Failed to access system clipboard";
         return false;
     }
-    
+
     clipboard->setText(text);
     return true;
 }
 
 QString QalculatorRunner::calculate(const QString &term)
 {
-    // Sanitize input to prevent command injection
-    // Only allow characters typically used in mathematical expressions
-    // Remove any potentially dangerous characters like ;, &, |, $, etc.
-    // Keep only numbers, letters, and mathematical operators
-    // Check for potentially dangerous command injection patterns
-    if (term.contains(QStringLiteral(";")) || 
-        term.contains(QStringLiteral("&&")) || 
-        term.contains(QStringLiteral("|")) || 
-        term.contains(QRegularExpression(QStringLiteral("\\$\\(|`")))) {
-        return QString();
-    }
-    
-    QRegularExpression allowedCharsValidator(QStringLiteral("^[0-9a-zA-Z+\\-*/()=.%,\\[\\]{}<>'\"`!?:#@_\\s]+$"));
-    if (!allowedCharsValidator.match(term).hasMatch()) {
-        // If the query contains potentially dangerous characters, return empty
-        return QString();
-    }
-    
-    QProcess qalculateProcess;
-    QStringList args;
-    args << QStringLiteral("--defaults")
-         << QStringLiteral("-e")
-         << QStringLiteral("-t")
-         << QStringLiteral("+u8")
-         << term;
-    
-    qalculateProcess.start(QStringLiteral("qalc"), args);
+    int timeout  = 2000;
 
-    if (!qalculateProcess.waitForStarted()) {
-        // Log error if process fails to start
-        qWarning() << "Failed to start qalc process";
-        return QString();
-    }
+    std::string expr = CALCULATOR->unlocalizeExpression(term.toStdString());
 
-    if (!qalculateProcess.waitForFinished()) {
-        // Log error if process doesn't finish
-        qWarning() << "qalc process didn't finish within timeout";
-        return QString();
-    }
+    // TODO: Both `eo` and `po` should be configured to have more sane defaults, or even make them user configurable (but that is a problem for future me, now I have studies to continue)
 
-    if (qalculateProcess.exitCode() != 0) {
-        // Log error if process exits with non-zero code
-        QString errorOutput = QString::fromUtf8(qalculateProcess.readAllStandardError());
-        qWarning() << "qalc exited with code:" << qalculateProcess.exitCode() << "Error:" << errorOutput;
-        return QString();
-    }
+    MathStructure mstruct;
+    EvaluationOptions eo;
+    bool success = CALCULATOR->calculate(&mstruct, expr, timeout, eo);
+    if (!success) return QString(); // abort if calculation failed
 
-    QString result = QString::fromUtf8(qalculateProcess.readAllStandardOutput());
-    result = result.trimmed();
+    PrintOptions po;
+    po.interval_display = INTERVAL_DISPLAY_MIDPOINT; // approximate result instead of "interval()"
+    std::string res_str = CALCULATOR->print(mstruct, timeout, po);
 
-    if (result.contains(QLatin1Char('\n'))) {
-        result = result.split(QLatin1Char('\n')).last().trimmed();
-    }
+    if (res_str == expr) return QString(); // dont return the original expression if it is the result
+
+    QString result = QString::fromStdString(res_str);
 
     return result;
 }
