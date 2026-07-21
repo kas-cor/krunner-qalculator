@@ -110,10 +110,11 @@ QString QalculatorRunner::calculate(const QString &term)
 
 **Шаги:**
 1. `CALCULATOR->unlocalizeExpression()` — конвертирует локализованное выражение в стандартное (запятые → точки и т.д.).
-2. `CALCULATOR->calculate(&mstruct, expr, timeout, eo)` — вычисляет с таймаутом 2000 мс.
-3. `CALCULATOR->print(mstruct, timeout, po)` — форматирует результат.
-4. Если результат совпадает с исходным выражением → возвращает `QString()` (ничего не показываем).
-5. Возвращает отформатированную строку.
+2. **Нормализация регистра валютных кодов** — перед вычислением выражение парсится на токены. Если найден паттерн `ЧИСЛО TOKEN1 to/in TOKEN2`, где TOKEN1 и TOKEN2 — 3-буквенные алфавитные токены (ISO 4217 коды валют), они приводятся к верхнему регистру. Ключевое слово (`to`/`in`) приводится к нижнему. Это необходимо, т.к. libqalculate case-sensitive для кодов валют (см. Сценарий Ж).
+3. `CALCULATOR->calculate(&mstruct, expr, timeout, eo)` — вычисляет с таймаутом 2000 мс.
+4. `CALCULATOR->print(mstruct, timeout, po)` — форматирует результат.
+5. Если результат совпадает с исходным выражением → возвращает `QString()` (ничего не показываем).
+6. Возвращает отформатированную строку.
 
 **Настройки печати (`PrintOptions`):**
 - `interval_display = INTERVAL_DISPLAY_MIDPOINT` — аппроксимация интервалов.
@@ -463,7 +464,93 @@ qDebug() << "Group separator:" << locale.groupSeparator(); // ' ' или ','
 setlocale(LC_NUMERIC, "C");
 ```
 
+#### Сценарий Ж: Конвертация валют не работает для lowercase кодов ("100 usd to rub")
+
+**Проблема:** libqalculate case-sensitive для кодов валют.  
+`"100 USD to RUB"` работает, а `"100 usd to rub"` возвращает мусор (`"100'r'y т'"` — "try" интерпретируется как глагол "t'ry", а не Turkish Lira).
+
+**Причина:** libqalculate не умеет регистронезависимый поиск валют.  
+Коды валют (ISO 4217) хранятся в DataSet только в верхнем регистре. `getUnit("usd")` возвращает `nullptr`, а `getUnit("USD")` — корректную единицу.
+
+**Исследование:**
+
+```cpp
+// Проверка через C++ API:
+Unit *u = CALCULATOR->getUnit("usd");  // → nullptr
+Unit *u = CALCULATOR->getUnit("USD");  // → корректен
+
+// DataSet::setCaseSensitive() существует, но применение его
+// к внутреннему currency DataSet глобально ломает другие части libqalculate
+```
+
+**Рассмотренные подходы и почему rejected:**
+
+| Подход | Результат |
+|---|---|
+| `DataSet::setCaseSensitive(false)` | Глобально ломает libqalculate — функции и константы становятся регистронезависимыми, что нежелательно |
+| Uppercase всего выражения (`"100 USD TO RUB"`) | libqalculate не понимает uppercase `"TO"` вместо `"to"` — тоже не работает. К тому же ломает единицы: `"KM/H"` не равно `"km/h"` |
+| Uppercase только 3-буквенных токенов | ✅ Работает. 2-буквенные токены (`kg`, `lb`, `cm`, `in`) и составные (`km/h`, `m/s`) не затрагиваются |
+
+**Решение:** нормализация регистра в `calculate()` перед вызовом `CALCULATOR->calculate()`:
+
+```cpp
+// Токенизация по пробелам
+const QStringList tokens = QString::fromStdString(expr).split(QLatin1Char(' '), Qt::SkipEmptyParts);
+
+for (qsizetype i = 0; i < tokens.size(); ++i) {
+    if (i + 3 < tokens.size()) {
+        bool isNumber = false;
+        tokens[i].toDouble(&isNumber);
+
+        if (isNumber) {
+            const QString &unit1 = tokens[i + 1];
+            const QString &kw    = tokens[i + 2];
+            const QString &unit2 = tokens[i + 3];
+
+            const QString kwLower = kw.toLower();
+            if ((kwLower == QStringLiteral("to") || kwLower == QStringLiteral("in"))
+                && unit1.length() == 3 && unit2.length() == 3
+                && std::none_of(unit1.begin(), unit1.end(), [](QChar c) { return !c.isLetter(); })
+                && std::none_of(unit2.begin(), unit2.end(), [](QChar c) { return !c.isLetter(); }))
+            {
+                // Uppercase ISO 4217 коды, lowercase ключевое слово
+                normalized.append(tokens[i]);              // число
+                normalized.append(unit1.toUpper());        // исходная валюта
+                normalized.append(kwLower);                 // to/in
+                normalized.append(unit2.toUpper());        // целевая валюта
+                i += 3;
+                continue;
+            }
+        }
+    }
+    normalized.append(tokens[i]);
+}
+
+expr = normalized.join(QLatin1Char(' ')).toStdString();
+```
+
+**Что при этом НЕ ломается:**
+
+| Ввод | Результат |
+|---|---|
+| `100 km/h to mph` | `"km/h"` — 4 символа, длина != 3 → не трогаем ✅ |
+| `100 kg to lb` | `"kg"` — 2 буквы, длина != 3 → не трогаем ✅ |
+| `sin(45)` | Нет пробелов, нет паттерна NUMBER → не трогаем ✅ |
+| `100 usd in rub` | `"in"` — тоже поддерживается, uppercas'им usd/rub ✅ |
+| `100 USD TO RUB` | `"TO"` → kwLower → `"to"`, работает ✅ |
+
+**Тестирование:**
+
+Тест `testCurrencyConversion()` в `test_qalculatorrunner.cpp` проверяет:
+- uppercase: `"100 USD to EUR"`, `"100 TRY to USD"` (оригинальный баг)
+- lowercase: `"100 try to usd"` (после фикса)
+- alternative keyword: `"100 usd in rub"` (ключевое слово `"in"`)
+
+**Ключевой урок:** `std::none_of(unit1.begin(), unit1.end(), [](QChar c) { return !c.isLetter(); })` — критически важная проверка, что токен состоит ТОЛЬКО из букв. Без неё `"100"` (число) или `"km/h"` (составной) были бы ошибочно заапперкейжены.
+
 #### Сценарий Е: Тесты не проходят после изменений
+
+Note: Сценарий Е intentionally placed after Ж — нумерация сохранена для обратной совместимости.
 
 ```bash
 # 1. Полная пересборка

@@ -24,6 +24,7 @@
 #include <KRunner/RunnerContext>
 #include <QObject>
 #include <QString>
+#include <QStringList>
 
 /**
  * This class evaluates the basic expressions given in the interface.
@@ -43,6 +44,11 @@ public Q_SLOTS:
 private:
     QString calculate(const QString &term);
     bool copyToClipboard(const QString &text);
+
+    // Cached triggers from manifest.json (e.g. "=").
+    // KRunner includes the trigger in the query passed to match(),
+    // but libqalculate may misinterpret it (e.g. "=" → boolean equality).
+    QStringList m_triggers;
 };
 
 K_PLUGIN_CLASS_WITH_JSON(QalculatorRunner, "manifest.json")

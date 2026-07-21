@@ -19,8 +19,11 @@
 #include <libqalculate/Calculator.h>
 #include <libqalculate/includes.h>
 
+#include <algorithm>
+
 #include <QObject>
 #include <QString>
+#include <QStringList>
 #include <QTest>
 
 namespace {
@@ -57,6 +60,7 @@ private Q_SLOTS:
     void testComplexExpression();
     void testUnitConversion();
     void testCurrencyConversion();
+    void testE2eWithTrigger();
     void testInputEqualsResult();
     void testErrorHandling();
     void testExpressionUnlocalization();
@@ -85,6 +89,49 @@ void TestQalculatorRunner::initTestCase()
 QString TestQalculatorRunner::calculate(const QString &term)
 {
     std::string expr = CALCULATOR->unlocalizeExpression(term.toStdString());
+
+    // Mirror the currency-code normalization from QalculatorRunner::calculate():
+    // uppercase 3-letter alphabetic tokens in a conversion pair
+    // (NUMBER TOKEN1 to/in TOKEN2) — targets ISO 4217 currency codes
+    // while skipping 2-letter units (kg, lb, cm) and compound units (km/h).
+    {
+        const QStringList tokens = QString::fromStdString(expr).split(QLatin1Char(' '), Qt::SkipEmptyParts);
+        QStringList normalized;
+        normalized.reserve(tokens.size());
+
+        for (qsizetype i = 0; i < tokens.size(); ++i)
+        {
+            if (i + 3 < tokens.size())
+            {
+                bool isNumber = false;
+                tokens[i].toDouble(&isNumber);
+
+                if (isNumber)
+                {
+                    const QString &unit1 = tokens[i + 1];
+                    const QString &kw    = tokens[i + 2];
+                    const QString &unit2 = tokens[i + 3];
+
+                    const QString kwLower = kw.toLower();
+                    if ((kwLower == QStringLiteral("to") || kwLower == QStringLiteral("in"))
+                        && unit1.length() == 3 && unit2.length() == 3
+                        && std::none_of(unit1.begin(), unit1.end(), [](QChar c) { return !c.isLetter(); })
+                        && std::none_of(unit2.begin(), unit2.end(), [](QChar c) { return !c.isLetter(); }))
+                    {
+                        normalized.append(tokens[i]);
+                        normalized.append(unit1.toUpper());
+                        normalized.append(kwLower);
+                        normalized.append(unit2.toUpper());
+                        i += 3;
+                        continue;
+                    }
+                }
+            }
+            normalized.append(tokens[i]);
+        }
+
+        expr = normalized.join(QLatin1Char(' ')).toStdString();
+    }
 
     MathStructure mstruct;
     EvaluationOptions eo;
@@ -203,6 +250,27 @@ void TestQalculatorRunner::testUnitConversion()
     }
     QVERIFY(ok);
     QVERIFY(qAbs(val - 62.14) < 1.0);
+
+    // Uppercase compound unit (MPH = 3-letter all-alpha) — verify that the
+    // currency-code normalization does NOT mistakenly treat it as a currency
+    // code. "MPH" is 3 letters (would pass the length check) but "km/h"
+    // is 4 chars (fails length check), so the normalization skips it.
+    // This also confirms libqalculate handles uppercase "MPH" correctly.
+    result = calculate(QStringLiteral("100 MPH to km/h"));
+    QVERIFY(!result.isEmpty());
+    // Must NOT echo input — verify conversion happened
+    QVERIFY(!result.startsWith(QStringLiteral("100")));
+    // Should mention km/h or its locale variant
+    QVERIFY(result.contains(QStringLiteral("km")) || result.contains(QStringLiteral("км")));
+    // Validate numeric: 100 mph ≈ 160.934 km/h
+    ok = false;
+    val = parseNumeric(result.section(QLatin1Char(' '), 0, 0), &ok);
+    if (!ok)
+    {
+        val = parseNumeric(result, &ok);
+    }
+    QVERIFY(ok);
+    QVERIFY(qAbs(val - 160.93) < 1.0);
 }
 
 void TestQalculatorRunner::testCurrencyConversion()
@@ -242,11 +310,110 @@ void TestQalculatorRunner::testCurrencyConversion()
     // Should reference USD or $
     QVERIFY(result.contains(QStringLiteral("USD")) || result.contains(QStringLiteral("$")));
 
-    // Lowercase variant: libqalculate does NOT recognize lowercase currency codes
-    // ("try" is interpreted as the verb "t'ry" instead of Turkish Lira).
-    // Verify it doesn't crash — the result may be garbled or empty.
+    // Lowercase currency codes now work thanks to the normalization in calculate()
+    // which uppercases 3-letter tokens in a conversion context.
     result = calculate(QStringLiteral("100 try to usd"));
-    // No assertions — just confirming no crash
+    QVERIFY(!result.isEmpty());
+    QVERIFY(!result.startsWith(QStringLiteral("100")));
+    QVERIFY(hasDigit(result));
+    QVERIFY(result.contains(QStringLiteral("USD")) || result.contains(QStringLiteral("$")));
+
+    // Additional lowercase variant — verify it converts correctly
+    result = calculate(QStringLiteral("100 usd to rub"));
+    QVERIFY(!result.isEmpty());
+    QVERIFY(!result.startsWith(QStringLiteral("100")));
+    QVERIFY(hasDigit(result));
+    // RUB check is sufficient — libqalculate returns "RUB" not the ₽ symbol
+    QVERIFY(result.contains(QStringLiteral("RUB")));
+}
+
+void TestQalculatorRunner::testE2eWithTrigger()
+{
+    // Exchange rates require network — skip gracefully if unavailable
+    if (!CALCULATOR->loadExchangeRates())
+    {
+        QSKIP("Exchange rates not available (no network?)");
+    }
+
+    // Helper: check that result contains at least one digit (proves numeric conversion)
+    auto hasDigit = [](const QString &s) {
+        for (int i = 0; i < s.size(); ++i)
+        {
+            if (s.at(i).isDigit())
+                return true;
+        }
+        return false;
+    };
+
+    // Mock the KRunner match pipeline:
+    //   1. Strip trigger prefix (just like QalculatorRunner::match())
+    //   2. Call calculate() with the stripped term
+    //   3. The result should contain the converted value
+    //
+    // This simulates what happens when user types "=100 usd to rub" in KRunner.
+    auto evaluateWithTrigger = [this](const QString &query) -> QString {
+        QString term = query;
+        // Replicate trigger stripping from QalculatorRunner::match():
+        // the "=" trigger is prepended by KRunner before passing to match()
+        const QStringList triggers = {QStringLiteral("=")};
+        for (const QString &trigger : triggers)
+        {
+            if (term.startsWith(trigger))
+            {
+                term = term.mid(trigger.length());
+                break;
+            }
+        }
+        // Call calculate() which includes currency-code normalization
+        return this->calculate(term);
+    };
+
+    // ═══════════════════════════════════════════════════════════════
+    // E2E: trigger + lowercase currency conversion
+    // ═══════════════════════════════════════════════════════════════
+    QString result = evaluateWithTrigger(QStringLiteral("=100 usd to rub"));
+    QVERIFY(!result.isEmpty());
+    QVERIFY(!result.startsWith(QStringLiteral("100")));
+    QVERIFY(hasDigit(result));
+    QVERIFY(result.contains(QStringLiteral("RUB")));
+
+    // ═══════════════════════════════════════════════════════════════
+    // E2E: trigger + uppercase currency (regression)
+    // ═══════════════════════════════════════════════════════════════
+    result = evaluateWithTrigger(QStringLiteral("=100 TRY to USD"));
+    QVERIFY(!result.isEmpty());
+    QVERIFY(!result.startsWith(QStringLiteral("100")));
+    QVERIFY(hasDigit(result));
+    QVERIFY(result.contains(QStringLiteral("USD")) || result.contains(QStringLiteral("$")));
+
+    // ═══════════════════════════════════════════════════════════════
+    // E2E: trigger + lowercase + "to" keyword
+    // ═══════════════════════════════════════════════════════════════
+    result = evaluateWithTrigger(QStringLiteral("=100 eur to usd"));
+    QVERIFY(!result.isEmpty());
+    QVERIFY(!result.startsWith(QStringLiteral("100")));
+    QVERIFY(hasDigit(result));
+    QVERIFY(result.contains(QStringLiteral("USD")) || result.contains(QStringLiteral("$")));
+
+    // ═══════════════════════════════════════════════════════════════
+    // E2E: trigger + basic arithmetic (no currency involved)
+    // ═══════════════════════════════════════════════════════════════
+    result = evaluateWithTrigger(QStringLiteral("=2+2"));
+    QVERIFY(!result.isEmpty());
+    QCOMPARE(parseNumeric(result), 4.0);
+
+    // ═══════════════════════════════════════════════════════════════
+    // E2E: trigger + unit conversion (should not break)
+    // ═══════════════════════════════════════════════════════════════
+    result = evaluateWithTrigger(QStringLiteral("=100 km/h to mph"));
+    QVERIFY(!result.isEmpty());
+    QVERIFY(result.contains(QStringLiteral("mph")));
+
+    // ═══════════════════════════════════════════════════════════════
+    // Negative: just "=" with nothing → should not crash
+    // ═══════════════════════════════════════════════════════════════
+    result = evaluateWithTrigger(QStringLiteral("="));
+    // No assertion — just confirming no crash
 }
 
 void TestQalculatorRunner::testInputEqualsResult()

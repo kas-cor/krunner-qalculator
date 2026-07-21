@@ -31,6 +31,10 @@
 
 #include <QClipboard>
 #include <QGuiApplication>
+#include <QJsonArray>
+#include <QJsonObject>
+
+#include <algorithm>
 
 QalculatorRunner::QalculatorRunner(QObject *parent, const KPluginMetaData &pluginMetaData)
     : KRunner::AbstractRunner(parent, pluginMetaData)
@@ -45,6 +49,16 @@ QalculatorRunner::QalculatorRunner(QObject *parent, const KPluginMetaData &plugi
         CALCULATOR->loadLocalDefinitions();
         CALCULATOR->loadExchangeRates();
     }
+
+    // Read triggers from manifest.json (e.g. "=") dynamically so that
+    // changing them in the metadata does not require a code change.
+    const QJsonObject root = metadata().rawData();
+    const QJsonArray triggersArray = root.value(QStringLiteral("KRunner")).toObject()
+                                        .value(QStringLiteral("Triggers")).toArray();
+    for (const QJsonValue &val : triggersArray)
+    {
+        m_triggers.append(val.toString());
+    }
 }
 
 QalculatorRunner::~QalculatorRunner() = default;
@@ -58,13 +72,17 @@ void QalculatorRunner::match(KRunner::RunnerContext &context)
         return;
     }
 
-    // Strip the "=" trigger prefix if present — KRunner includes it in the
-    // query, but libqalculate interprets leading "=" as boolean equality.
-    // E.g. "=100 try to usd" would fail; "100 try to usd" works.
+    // Strip any trigger prefix that KRunner prepends to the query.
+    // E.g. with trigger "=", KRunner passes "=100 USD to EUR" but
+    // libqalculate interprets leading "=" as boolean equality.
     QString term = query;
-    if (term.startsWith(QLatin1Char('=')))
+    for (const QString &trigger : std::as_const(m_triggers))
     {
-        term = term.mid(1);
+        if (term.startsWith(trigger))
+        {
+            term = term.mid(trigger.length());
+            break;
+        }
     }
 
     const QString result = calculate(term);
@@ -120,6 +138,55 @@ QString QalculatorRunner::calculate(const QString &term)
     int timeout = 2000;
 
     std::string expr = CALCULATOR->unlocalizeExpression(term.toStdString());
+
+    // libqalculate is case-sensitive for currency codes (ISO 4217).
+    // "100 usd to rub" is NOT recognized, but "100 USD to RUB" is.
+    // Uppercase any 3-letter alphabetic token in a conversion pair
+    // (NUMBER TOKEN1 to/in TOKEN2) — this targets currency codes
+    // while skipping 2-letter unit tokens (kg, lb, cm) and compound
+    // units (km/h, mph).
+    {
+        const QStringList tokens = QString::fromStdString(expr).split(QLatin1Char(' '), Qt::SkipEmptyParts);
+        QStringList normalized;
+        normalized.reserve(tokens.size());
+
+        for (qsizetype i = 0; i < tokens.size(); ++i)
+        {
+            // Look ahead for the conversion pattern
+            if (i + 3 < tokens.size())
+            {
+                bool isNumber = false;
+                tokens[i].toDouble(&isNumber);
+
+                if (isNumber)
+                {
+                    const QString &unit1 = tokens[i + 1];
+                    const QString &kw    = tokens[i + 2];
+                    const QString &unit2 = tokens[i + 3];
+
+                    // Check keyword is "to" or "in" (case-insensitive)
+                    const QString kwLower = kw.toLower();
+                    if ((kwLower == QStringLiteral("to") || kwLower == QStringLiteral("in"))
+                        && unit1.length() == 3 && unit2.length() == 3
+                        && std::none_of(unit1.begin(), unit1.end(), [](QChar c) { return !c.isLetter(); })
+                        && std::none_of(unit2.begin(), unit2.end(), [](QChar c) { return !c.isLetter(); }))
+                    {
+                        // 3-letter tokens in a conversion context are
+                        // almost certainly ISO 4217 currency codes.
+                        normalized.append(tokens[i]);              // number
+                        normalized.append(unit1.toUpper());        // source currency
+                        normalized.append(kwLower);                 // libqalculate only recognizes lowercase keywords
+                        normalized.append(unit2.toUpper());        // target currency
+                        i += 3;
+                        continue;
+                    }
+                }
+            }
+            normalized.append(tokens[i]);
+        }
+
+        expr = normalized.join(QLatin1Char(' ')).toStdString();
+    }
 
     // TODO: Both `eo` and `po` should be configured to have more sane defaults, or even make them user configurable
     // (but that is a problem for future me, now I have studies to continue)
