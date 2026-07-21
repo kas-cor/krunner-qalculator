@@ -5,7 +5,7 @@
  *   Copyright (C) 2007 Richard Moore <rich@kde.org>
  *
  *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU Library General Public License version 2 as
+ *   it under the terms of the GNU General Public License version 2 as
  *   published by the Free Software Foundation
  *
  *   This program is distributed in the hope that it will be useful,
@@ -13,7 +13,7 @@
  *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *   GNU General Public License for more details
  *
- *   You should have received a copy of the GNU Library General Public
+ *   You should have received a copy of the GNU General Public
  *   License along with this program; if not, write to the
  *   Free Software Foundation, Inc.,
  *   51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
@@ -25,19 +25,21 @@
 #include "qalculatorrunner.h"
 
 #include <libqalculate/Calculator.h>
-
-#include <QProcess>
-#include <QRegularExpression>
-#include <KLocalizedString>
 #include <libqalculate/includes.h>
 
-QalculatorRunner::QalculatorRunner(QObject* parent, const KPluginMetaData &pluginMetaData)
+#include <KLocalizedString>
+
+#include <QClipboard>
+#include <QGuiApplication>
+
+QalculatorRunner::QalculatorRunner(QObject *parent, const KPluginMetaData &pluginMetaData)
     : KRunner::AbstractRunner(parent, pluginMetaData)
 {
     setObjectName(QStringLiteral("Qalculator"));
 
     // Pre-initialize the library once when the plugin loads including all the exchange rates
-    if (!CALCULATOR) {
+    if (!CALCULATOR)
+    {
         CALCULATOR = new Calculator();
         CALCULATOR->loadGlobalDefinitions();
         CALCULATOR->loadLocalDefinitions();
@@ -45,20 +47,29 @@ QalculatorRunner::QalculatorRunner(QObject* parent, const KPluginMetaData &plugi
     }
 }
 
-QalculatorRunner::~QalculatorRunner()
-{
-}
+QalculatorRunner::~QalculatorRunner() = default;
 
 void QalculatorRunner::match(KRunner::RunnerContext &context)
 {
-    const QString term = context.query();
+    const QString query = context.query();
 
-    if (term.isEmpty()) {
+    if (query.isEmpty())
+    {
         return;
     }
 
+    // Strip the "=" trigger prefix if present — KRunner includes it in the
+    // query, but libqalculate interprets leading "=" as boolean equality.
+    // E.g. "=100 try to usd" would fail; "100 try to usd" works.
+    QString term = query;
+    if (term.startsWith(QLatin1Char('=')))
+    {
+        term = term.mid(1);
+    }
+
     const QString result = calculate(term);
-    if (!result.isEmpty()) {
+    if (!result.isEmpty())
+    {
         KRunner::QueryMatch match(this);
         match.setRelevance(1.0);
         match.setText(result);
@@ -76,12 +87,16 @@ void QalculatorRunner::run(const KRunner::RunnerContext &context, const KRunner:
     const QString result = match.text();
     const QString action = match.selectedAction().id();
 
-    if (action == QLatin1String("copy")) {
-        if (!copyToClipboard(result)) {
+    if (action == QLatin1String("copy"))
+    {
+        if (!copyToClipboard(result))
+        {
             qWarning() << "Failed to copy result to clipboard";
         }
         context.requestQueryStringUpdate(QString(), 0); // Close KRunner
-    } else {
+    }
+    else
+    {
         // Insert result into query line without closing KRunner
         context.requestQueryStringUpdate(result, result.length());
     }
@@ -90,7 +105,8 @@ void QalculatorRunner::run(const KRunner::RunnerContext &context, const KRunner:
 bool QalculatorRunner::copyToClipboard(const QString &text)
 {
     QClipboard *clipboard = QGuiApplication::clipboard();
-    if (!clipboard) {
+    if (!clipboard)
+    {
         qWarning() << "Failed to access system clipboard";
         return false;
     }
@@ -101,22 +117,29 @@ bool QalculatorRunner::copyToClipboard(const QString &text)
 
 QString QalculatorRunner::calculate(const QString &term)
 {
-    int timeout  = 2000;
+    int timeout = 2000;
 
     std::string expr = CALCULATOR->unlocalizeExpression(term.toStdString());
 
-    // TODO: Both `eo` and `po` should be configured to have more sane defaults, or even make them user configurable (but that is a problem for future me, now I have studies to continue)
+    // TODO: Both `eo` and `po` should be configured to have more sane defaults, or even make them user configurable
+    // (but that is a problem for future me, now I have studies to continue)
 
     MathStructure mstruct;
     EvaluationOptions eo;
     bool success = CALCULATOR->calculate(&mstruct, expr, timeout, eo);
-    if (!success) return QString(); // abort if calculation failed
+    if (!success)
+    {
+        return {}; // abort if calculation failed
+    }
 
     PrintOptions po;
     po.interval_display = INTERVAL_DISPLAY_MIDPOINT; // approximate result instead of "interval()"
     std::string res_str = CALCULATOR->print(mstruct, timeout, po);
 
-    if (res_str == expr) return QString(); // dont return the original expression if it is the result
+    if (res_str == expr)
+    {
+        return {}; // dont return the original expression if it is the result
+    }
 
     QString result = QString::fromStdString(res_str);
 

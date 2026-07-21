@@ -1,0 +1,29 @@
+# SPDX-FileCopyrightText: 2025 kas-cor
+# SPDX-License-Identifier: GPL-2.0-only
+
+Checks: >
+  -*,
+  bugprone-*,
+  clang-analyzer-*,
+  modernize-*,
+  performance-*,
+  readability-*,
+  -modernize-use-trailing-return-type,
+  -readability-identifier-naming,
+  -readability-magic-numbers,
+  -readability-function-cognitive-complexity,
+  -readability-else-after-return,
+  -modernize-concat-nested-namespaces,
+  -bugprone-easily-swappable-parameters,
+  -readability-redundant-access-specifiers,
+  -readability-identifier-length,
+  -readability-convert-member-functions-to-static,
+
+WarningsAsErrors: >
+  clang-analyzer-core.*,
+  clang-analyzer.cplusplus.*,
+
+FormatStyle: none
+
+CheckOptions:
+  readability-implicit-bool-conversion.AllowPointerConditions: true

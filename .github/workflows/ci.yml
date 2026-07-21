@@ -1,0 +1,69 @@
+name: Build, Test & Static Analysis
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        # Tests only need Qt6 and libqalculate — no KF6 packages required
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq \
+            cmake \
+            g++ \
+            make \
+            qt6-base-dev \
+            libqalculate-dev \
+            clang-tidy \
+            cppcheck
+
+      - name: Configure (CMake)
+        # BUILD_ONLY_TESTS=ON skips the main plugin (needs KF6) and builds
+        # only the test binary (needs only Qt6::Test and libqalculate).
+        run: |
+          cmake -B build \
+                -DCMAKE_BUILD_TYPE=Debug \
+                -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
+                -DBUILD_ONLY_TESTS=ON
+
+      - name: Build (tests only)
+        run: |
+          cmake --build build -j$(nproc)
+
+      - name: Run tests
+        run: |
+          cd build && ctest --output-on-failure -V
+
+      - name: Static analysis — clang-tidy
+        run: |
+          clang-tidy --version
+          find src/ tests/ -name '*.cpp' -o -name '*.h' \
+            | xargs clang-tidy -p build --quiet 2>&1 || true
+        continue-on-error: true
+
+      - name: Static analysis — cppcheck
+        run: |
+          cppcheck --version
+          cppcheck --enable=all \
+                   --std=c++17 \
+                   --suppress=syntaxError \
+                   --suppress=unknownMacro \
+                   --suppress=unmatchedSuppression \
+                   --inline-suppr \
+                   --quiet \
+                   --language=c++ \
+                   -I src/ \
+                   -I tests/ \
+                   src/ tests/ \
+                   2>&1 || true
+        continue-on-error: true

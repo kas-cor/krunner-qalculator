@@ -2,7 +2,7 @@
  *   Copyright (C) 2007 Barış Metin <baris@pardus.org.tr>
  *
  *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU Library General Public License version 2 as
+ *   it under the terms of the GNU General Public License version 2 as
  *   published by the Free Software Foundation
  *
  *   This program is distributed in the hope that it will be useful,
@@ -10,7 +10,7 @@
  *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *   GNU General Public License for more details
  *
- *   You should have received a copy of the GNU Library General Public
+ *   You should have received a copy of the GNU General Public
  *   License along with this program; if not, write to the
  *   Free Software Foundation, Inc.,
  *   51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
@@ -18,14 +18,12 @@
 
 #pragma once
 
+#include <KPluginFactory>
+#include <KRunner/AbstractRunner>
+#include <KRunner/Action>
+#include <KRunner/RunnerContext>
 #include <QObject>
 #include <QString>
-#include <KRunner/AbstractRunner>
-#include <KRunner/RunnerContext>
-#include <KRunner/Action>
-#include <KPluginFactory>
-#include <QClipboard>
-#include <QGuiApplication>
 
 /**
  * This class evaluates the basic expressions given in the interface.
@@ -35,7 +33,7 @@ class QalculatorRunner : public KRunner::AbstractRunner
     Q_OBJECT
 
 public:
-    QalculatorRunner(QObject* parent, const KPluginMetaData &pluginMetaData);
+    QalculatorRunner(QObject *parent, const KPluginMetaData &pluginMetaData);
     ~QalculatorRunner() override;
 
 public Q_SLOTS:

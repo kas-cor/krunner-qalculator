@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.16)
 
 project(krunner-qalculator)
 
-set(PROJECT_VERSION "2.0.1")
+set(PROJECT_VERSION "2.1.0")
 set(PROJECT_SOVERSION 0)
 set(CMAKE_PROJECT_HOMEPAGE_URL "https://github.com/kas-cor/krunner-qalculator")
 set(CMAKE_PROJECT_AUTHOR "kas-cor")
