@@ -16,7 +16,7 @@
 | Сборка | CMake + ECM |
 | Плагин раннера | `KRunner::AbstractRunner` |
 | Движок вычислений | `libqalculate` (линковка через `PkgConfig`) |
-| Версия | 2.1.0 |
+| Версия | 2.2.0 |
 | Лицензия | GPL-2.0 (LICENSE, manifest.json, заголовки файлов) |
 
 ### Структура репозитория
@@ -165,7 +165,7 @@ bool QalculatorRunner::copyToClipboard(const QString &text)
     "Category": "Finance",
     "Description": "Calculator using qalc",
     "Icon": "accessories-calculator",
-    "Version": "2.0.1",
+    "Version": "2.2.0",
     "License": "GPL-2.0",
     "Website": "https://github.com/kas-cor/krunner-qalculator"
   },

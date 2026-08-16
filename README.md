@@ -20,6 +20,13 @@ A powerful calculator plugin for KDE Plasma's KRunner, leveraging the advanced c
 
 ## What's New
 
+### 2.2.0
+
+- **Prebuilt release packaging (Issue #4)**: CI now builds the full plugin in an Arch Linux container and attaches a ready-to-install `krunner-qalculator-2.2.0.tar.gz` to every tagged GitHub Release
+- **New `scripts/install-prebuilt.sh`**: install the plugin from a prebuilt archive with no compiler/CMake needed — auto-detects `sudo` (system-wide) or falls back to `~/.local` (per-user)
+- **New `scripts/package.sh`**: bundles the compiled plugin, manifest and hooks into a single `.tar.gz`
+- **README**: added "Install from Prebuilt" section
+
 ### 2.1.0
 
 - **Rewritten tests**: now use the libqalculate C++ API directly instead of the qalc CLI — faster, more reliable, and testing the actual code path
