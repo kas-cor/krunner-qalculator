@@ -1,44 +1,36 @@
-name: Build, Test & Static Analysis
+name: Build, Test, Package & Release
 
 on:
   push:
     branches: [ "main" ]
+    tags: [ "v*" ]
   pull_request:
     branches: [ "main" ]
 
 jobs:
-  build:
+  build-and-test:
+    # Лёгкая проверка на дефолтном ubuntu: тесты + статический анализ.
+    # Полный плагин (KF6) тут не собирается (KF6 нет в узле), поэтому BUILD_ONLY_TESTS=ON.
     runs-on: ubuntu-24.04
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install build dependencies
-        # Tests only need Qt6 and libqalculate — no KF6 packages required
+      - name: Install build dependencies (tests only)
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq \
-            cmake \
-            g++ \
-            make \
-            qt6-base-dev \
-            libqalculate-dev \
-            clang-tidy \
-            cppcheck
+            cmake g++ make qt6-base-dev libqalculate-dev clang-tidy cppcheck
 
-      - name: Configure (CMake)
-        # BUILD_ONLY_TESTS=ON skips the main plugin (needs KF6) and builds
-        # only the test binary (needs only Qt6::Test and libqalculate).
+      - name: Configure (tests only)
         run: |
           cmake -B build \
                 -DCMAKE_BUILD_TYPE=Debug \
                 -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
                 -DBUILD_ONLY_TESTS=ON
 
-      - name: Build (tests only)
-        run: |
-          cmake --build build -j$(nproc)
+      - name: Build tests
+        run: cmake --build build -j$(nproc)
 
       - name: Run tests
         run: |
@@ -53,17 +45,52 @@ jobs:
 
       - name: Static analysis — cppcheck
         run: |
-          cppcheck --version
           cppcheck --enable=all \
                    --std=c++17 \
                    --suppress=syntaxError \
                    --suppress=unknownMacro \
                    --suppress=unmatchedSuppression \
                    --inline-suppr \
-                   --quiet \
                    --language=c++ \
-                   -I src/ \
-                   -I tests/ \
+                   -I src/ -I tests/ \
                    src/ tests/ \
                    2>&1 || true
         continue-on-error: true
+
+  package:
+    # Сборка ПОЛНОГО плагина (нужны KF6 + krunner headers) и упаковка в tar.gz.
+    # Выполняется внутри KDE Neon-образа, где присутствуют все dev-пакеты.
+    if: startsWith(github.ref, 'refs/tags/v')   # пакет собираем только на тегах релизов
+    runs-on: ubuntu-24.04
+    container:
+      image: kdeneon/plasma:developer
+    steps:
+      - name: Install additional build deps
+        run: |
+          apt-get update -qq
+          apt-get install -y -qq cmake g++ make extra-cmake-modules libqalculate-dev 2>/dev/null || true
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Configure (full plugin)
+        run: |
+          cmake -B build \
+                -DCMAKE_BUILD_TYPE=Release \
+                -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
+                -DBUILD_TESTING=OFF \
+                -DBUILD_ONLY_TESTS=OFF
+
+      - name: Build full plugin
+        run: cmake --build build -j$(nproc)
+
+      - name: Package prebuilt archive
+        run: |
+          chmod +x scripts/package.sh scripts/install-prebuilt.sh
+          ./scripts/package.sh build dist
+
+      - name: Upload archive to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/krunner-qalculator-*.tar.gz
+          fail_on_unmatched_files: true

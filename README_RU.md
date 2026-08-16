@@ -65,6 +65,25 @@
 - Установку в систему
 - Автоматический перезапуск KRunner
 
+### Установка из готового пакета (без toolchain)
+
+Готовые архивы прикладываются к каждому [релизу GitHub](https://github.com/kas-cor/krunner-qalculator/releases).
+Компилятор и CMake не требуются.
+
+```bash
+# 1. Скачайте архив krunner-qalculator-<версия>.tar.gz со страницы Release
+   (или:  curl -sL <url-ассета> -o qalculator.tar.gz)
+
+# 2. Распакуйте и установите
+tar -xzf krunner-qalculator-*.tar.gz
+cd stage
+./install-prebuilt.sh
+```
+
+> Установщик сам определяет sudo. Если sudo работает без пароля — ставит в систему,
+> иначе — в `~/.local/lib/qt6/plugins/kf6/krunner/` (только для текущего пользователя, без sudo).
+> Наличие `libqalculate` в системе обязательно — это зависимость исполнения.
+
 ## Сборка из исходников (с тестами)
 
 ```bash

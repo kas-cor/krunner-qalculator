@@ -66,6 +66,25 @@ A powerful calculator plugin for KDE Plasma's KRunner, leveraging the advanced c
     - Restart KRunner automatically
 4. Disable the default calculator and unit converter plugins (recommended to reduce visual clutter)
 
+### Install from Prebuilt (no toolchain needed)
+
+Prebuilt archives are attached to every [GitHub Release](https://github.com/kas-cor/krunner-qalculator/releases).
+No compiler or CMake required.
+
+```bash
+# 1. Download the archive named krunner-qalculator-<version>.tar.gz from the Release page
+   (or:  curl -sL <asset-url> -o qalculator.tar.gz)
+
+# 2. Extract and install
+tar -xzf krunner-qalculator-*.tar.gz
+cd stage
+./install-prebuilt.sh
+```
+
+> The installer auto-detects sudo. With passwordless sudo it installs system-wide,
+> otherwise into `~/.local/lib/qt6/plugins/kf6/krunner/` (per-user, no sudo).
+> `libqalculate` must be present on the system — it is a runtime dependency.
+
 ## Building from Source (with Tests)
 
 ```bash
