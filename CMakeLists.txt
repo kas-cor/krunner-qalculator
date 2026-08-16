@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.16)
 project(krunner_qalculator_root)
 
 # Set project version
-set(PROJECT_VERSION "2.1.0")
+set(PROJECT_VERSION "2.2.0")
 
 # Add options
 option(BUILD_TESTING "Build the testing tree." ON)
