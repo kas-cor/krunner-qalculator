@@ -3,6 +3,7 @@ name: Build, Test, Package & Release
 on:
   push:
     branches: [ "main" ]
+    paths-ignore: [ "*.md", "docs/**" ]
     tags: [ "v*" ]
   pull_request:
     branches: [ "main" ]
@@ -14,6 +15,7 @@ jobs:
   build-and-test:
     # Лёгкая проверка на дефолтном ubuntu: тесты + статический анализ.
     # Полный плагин (KF6) тут не собирается (KF6 нет в узле), поэтому BUILD_ONLY_TESTS=ON.
+    # Не запускается при правках только документации (*.md) — см. paths-ignore выше.
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout repository
