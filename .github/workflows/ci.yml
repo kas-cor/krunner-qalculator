@@ -59,16 +59,19 @@ jobs:
 
   package:
     # Сборка ПОЛНОГО плагина (нужны KF6 + krunner headers) и упаковка в tar.gz.
-    # Выполняется внутри KDE Neon-образа, где присутствуют все dev-пакеты.
+    # Выполняется в Arch Linux (base-devel) — там KF6-плагины и libqalculate
+    # есть в официальных репозиториях, сборка надёжна и быстра.
     if: startsWith(github.ref, 'refs/tags/v')   # пакет собираем только на тегах релизов
     runs-on: ubuntu-24.04
     container:
-      image: kdeneon/plasma:developer
+      image: archlinux:base-devel
     steps:
-      - name: Install additional build deps
+      - name: Install build dependencies
         run: |
-          apt-get update -qq
-          apt-get install -y -qq cmake g++ make extra-cmake-modules libqalculate-dev 2>/dev/null || true
+          pacman -Syu --noconfirm --needed \
+            cmake gcc make \
+            qt6-base krunner kcoreaddons kconfig ki18n \
+            extra-cmake-modules libqalculate
 
       - name: Checkout repository
         uses: actions/checkout@v4
